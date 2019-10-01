@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Web Auth</title>
+
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/milligram/1.3.0/milligram.css">
+
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .page-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding-top: 48px;
+            max-width: 1000px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="page-container">
+        Username:
+        <input id="txt-username">
+        <button id=btn-register>Register</button>
+        <button id=btn-login>Login</button>
+    </div>
+
+    <script type="module">
+        import {postJson, publicKeyCredentialToJSON} from "./utils.js";
+
+        window.onload = () => {
+            const registerButton = document.getElementById('btn-register')
+            registerButton.addEventListener('click', () => {
+                register()
+            })
+        };
+
+        async function register() {
+            // send username to server, check if user is registered
+            // if yes, return error and let them log in,
+            // if not send back random challenge
+            const body = {
+                username: document.getElementById('txt-username').value
+            };
+            const registrationResponse = await postJson('/register', body)
+            if (registrationResponse.error) {
+                alert(registrationResponse.error)
+            } else {
+                console.log(registrationResponse)
+
+                // these fields need to be byte arrays instead of strings
+                registrationResponse.challenge = new TextEncoder("utf-8").encode(registrationResponse.challenge)
+                registrationResponse.user.id = new TextEncoder("utf-8").encode(registrationResponse.user.id)
+
+                console.log(registrationResponse)
+                const publicKeyCredential = await navigator.credentials.create( { publicKey: registrationResponse } )
+                const publicKeyCredentialJson = publicKeyCredentialToJSON(publicKeyCredential)
+                console.log(publicKeyCredentialJson)
+                await postJson('/save-new-key', publicKeyCredentialJson)
+            }
+
+        }
+
+    </script>
+
+
+</body>
+
+</html>
