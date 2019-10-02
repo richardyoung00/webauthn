@@ -17,6 +17,7 @@
             flex-direction: column;
             align-items: center;
         }
+
         .page-container {
             width: 100%;
             display: flex;
@@ -31,50 +32,86 @@
 
 <body>
 
-    <div class="page-container">
-        Username:
-        <input id="txt-username">
-        <button id=btn-register>Register</button>
-        <button id=btn-login>Login</button>
-    </div>
+<div class="page-container">
+    Username:
+    <input id="txt-username">
+    <button id=btn-register>Register</button>
+    <button id=btn-login>Login</button>
+</div>
 
-    <script type="module">
-        import {postJson, publicKeyCredentialToJSON} from "./utils.js";
+<script type="module">
+    import {postJson, publicKeyCredentialToJSON} from "./utils.js";
 
-        window.onload = () => {
-            const registerButton = document.getElementById('btn-register')
-            registerButton.addEventListener('click', () => {
-                register()
-            })
+    window.onload = () => {
+        const registerButton = document.getElementById('btn-register');
+        registerButton.addEventListener('click', () => {
+            register()
+        });
+
+        const loginButton = document.getElementById('btn-login');
+        loginButton.addEventListener('click', () => {
+            login()
+        })
+    };
+
+    async function register() {
+        // send username to server, check if user is registered
+        // if yes, return error and let them log in,
+        // if not send back random challenge
+        const body = {
+            username: document.getElementById('txt-username').value
         };
+        const registrationResponse = await postJson('/register', body);
+        if (registrationResponse.status !== 'ok') {
+            alert(registrationResponse.message)
+        } else {
+            console.log(registrationResponse);
 
-        async function register() {
-            // send username to server, check if user is registered
-            // if yes, return error and let them log in,
-            // if not send back random challenge
-            const body = {
-                username: document.getElementById('txt-username').value
-            };
-            const registrationResponse = await postJson('/register', body)
-            if (registrationResponse.error) {
-                alert(registrationResponse.error)
-            } else {
-                console.log(registrationResponse)
+            // these fields need to be byte arrays instead of strings
+            registrationResponse.challenge = strToByteArray(registrationResponse.challenge);
+            registrationResponse.user.id = strToByteArray(registrationResponse.user.id);
 
-                // these fields need to be byte arrays instead of strings
-                registrationResponse.challenge = new TextEncoder("utf-8").encode(registrationResponse.challenge)
-                registrationResponse.user.id = new TextEncoder("utf-8").encode(registrationResponse.user.id)
+            const publicKeyCredential = await navigator.credentials.create({publicKey: registrationResponse});
+            const publicKeyCredentialJson = publicKeyCredentialToJSON(publicKeyCredential);
 
-                console.log(registrationResponse)
-                const publicKeyCredential = await navigator.credentials.create( { publicKey: registrationResponse } )
-                const publicKeyCredentialJson = publicKeyCredentialToJSON(publicKeyCredential)
-                console.log(publicKeyCredentialJson)
-                await postJson('/save-new-key', publicKeyCredentialJson)
+            const resisterResponse = await postJson('/verify-registration', publicKeyCredentialJson);
+            if (resisterResponse.status !== 'ok') {
+                alert(resisterResponse.message)
             }
-
         }
 
-    </script>
+    }
+
+    const strToByteArray = (str) => new TextEncoder("utf-8").encode(str);
+
+
+    async function login() {
+        const body = {
+            username: document.getElementById('txt-username').value
+        };
+
+        const loginResponse = await postJson('/login', body);
+        if (loginResponse.status !== 'ok') {
+            alert(loginResponse.message)
+        } else {
+            loginResponse.challenge = strToByteArray(loginResponse.challenge);
+
+            for(let allowCred of loginResponse.allowCredentials) {
+                allowCred.id = strToByteArray(allowCred.id);
+            }
+            const cred = navigator.credentials.get({publicKey: loginResponse});
+
+            let getAssertionResponse = publicKeyCredentialToJSON(cred);
+            const result = await postJson('/verify-login', getAssertionResponse);
+
+
+            if (result.status !== 'ok') {
+                alert(`Server responed with error. The message is: ${result.message}`);
+            }
+        }
+    }
+
+</script>
 
 
 </body>

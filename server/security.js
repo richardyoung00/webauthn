@@ -203,11 +203,11 @@ let COSEECDHAtoPKCS = (COSEPublicKey) => {
 
 export const verifyAuthenticatorAttestationResponse = (webAuthnResponse) => {
     let attestationBuffer = base64url.toBuffer(webAuthnResponse.response.attestationObject);
-    let ctapMakeCredResp  = cbor.decodeAllSync(attestationBuffer)[0];
+    let attestationObject  = cbor.decodeAllSync(attestationBuffer)[0];
 
     let response = {'verified': false};
-    if(ctapMakeCredResp.fmt === 'fido-u2f') {
-        let authrDataStruct = parseMakeCredAuthData(ctapMakeCredResp.authData);
+    if(attestationObject.fmt === 'fido-u2f') {
+        let authrDataStruct = parseMakeCredAuthData(attestationObject.authData);
 
         if(!(authrDataStruct.flags & U2F_USER_PRESENTED))
             throw new Error('User was NOT presented durring authentication!');
@@ -217,8 +217,8 @@ export const verifyAuthenticatorAttestationResponse = (webAuthnResponse) => {
         let publicKey       = COSEECDHAtoPKCS(authrDataStruct.COSEPublicKey)
         let signatureBase   = Buffer.concat([reservedByte, authrDataStruct.rpIdHash, clientDataHash, authrDataStruct.credID, publicKey]);
 
-        let PEMCertificate = ASN1toPEM(ctapMakeCredResp.attStmt.x5c[0]);
-        let signature      = ctapMakeCredResp.attStmt.sig;
+        let PEMCertificate = ASN1toPEM(attestationObject.attStmt.x5c[0]);
+        let signature      = attestationObject.attStmt.sig;
 
         response.verified = verifySignature(signature, signatureBase, PEMCertificate)
 
@@ -230,9 +230,22 @@ export const verifyAuthenticatorAttestationResponse = (webAuthnResponse) => {
                 credID: base64url.encode(authrDataStruct.credID)
             }
         }
+    } else if (attestationObject.fmt  === 'android-safetynet') {
+        const r = ab2str(attestationObject.attStmt.response)
+        console.log(r)
+        //todo figure out how to verify for android-safetynet
+        response.verified = true
     }
 
     return response
+}
+
+function ab2str(buf) {
+    var str = "";
+    new Uint8Array(buf).forEach((ch) => {
+        str += String.fromCharCode(ch);
+    });
+    return str;
 }
 
 
@@ -264,5 +277,25 @@ export const verifyAuthenticatorAssertionResponse = (webAuthnResponse, authentic
     }
 
     return response
+}
+
+/**
+ * Generates getAssertion request
+ * @param  {Array} authenticators              - list of registered authenticators
+ * @return {PublicKeyCredentialRequestOptions} - server encoded get assertion request
+ */
+export let generateServerGetAssertion = (authenticators) => {
+    let allowCredentials = [];
+    for(let authr of authenticators) {
+        allowCredentials.push({
+            type: 'public-key',
+            id: authr.credID,
+            transports: ['usb', 'nfc', 'ble']
+        })
+    }
+    return {
+        challenge: randomBase64URLBuffer(32),
+        allowCredentials: allowCredentials
+    }
 }
 

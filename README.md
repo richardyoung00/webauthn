@@ -7,3 +7,7 @@
 5. server verifies that origin is correct
 6. verifyAuthenticatorAttestationResponse
 7. If verified correctly then save user to DB
+
+Resources:
+- https://medium.com/@herrjemand/verifying-fido2-responses-4691288c8770
+- https://medium.com/@herrjemand/verifying-fido2-safetynet-attestation-bd261ce1978d

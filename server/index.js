@@ -3,15 +3,14 @@ import bodyParser from "body-parser";
 import cookieSession from "cookie-session";
 import crypto from "crypto";
 import {generateServerMakeCredRequest, randomBase64URLBuffer,
-    verifyAuthenticatorAttestationResponse, verifyAuthenticatorAssertionResponse} from "./security.js";
+    verifyAuthenticatorAttestationResponse, verifyAuthenticatorAssertionResponse, generateServerGetAssertion} from "./security.js";
 import path from 'path'
 import url from 'url'
 import base64url from "base64url";
+import {verifyNewCredential} from "./registration.js";
 
 const app = express();
 const port = 3000;
-
-const origin = 'http://localhost:3000';
 
 const __dirname = path.dirname(new url.URL(import.meta.url).pathname);
 
@@ -27,7 +26,7 @@ app.use(cookieSession({
 }));
 
 const database = {
-    users: []
+    users: {}
 };
 
 app.post('/register', (req, res) => {
@@ -36,8 +35,7 @@ app.post('/register', (req, res) => {
         return
     }
     const username = req.body.username.toLowerCase();
-    database.users.find((user) => user.username === username);
-    if (database.users.find((user) => user.username === username)) {
+    if (database.users[username]) {
         res.json({error: 'Username already exists, try logging in'});
         return
     }
@@ -59,78 +57,39 @@ app.post('/register', (req, res) => {
     req.session.challenge = challengeMakeCred.challenge;
     req.session.username  = username;
 
+    challengeMakeCred.status = 'ok';
 
     res.json(challengeMakeCred)
 });
 
-app.post('/save-new-key', (req, res) => {
-    console.log(req.body);
-    if (!req.body || !req.body.id
-        || !req.body.rawId || !req.body.response
-        || !req.body.type || req.body.type !== 'public-key') {
+/*
+* https://w3c.github.io/webauthn/#sctn-registering-a-new-credential
+* */
+app.post('/verify-registration', (req, res) => {
+    let publicKeyCredential = req.body;
+
+    const expectations = {
+        origin: 'http://localhost:3000',
+        challenge: req.session.challenge
+    };
+
+    try {
+        verifyNewCredential(publicKeyCredential, expectations);
+    } catch(e) {
         res.json({
             'status': 'failed',
-            'message': 'Response missing one or more of id/rawId/response/type fields, or type is not public-key!'
-        });
-        return
-    }
-
-    let webauthnResp = req.body;
-    const clientData = JSON.parse(base64url.decode(webauthnResp.response.clientDataJSON));
-
-    const clientChallenge = base64url.decode(clientData.challenge);
-
-    /* Check challenge... */
-    if (clientChallenge !== req.session.challenge) {
-        res.json({
-            'status': 'failed',
-            'message': 'Challenges don\'t match!'
-        });
-        return
-    }
-
-    /* ...and origin */
-    if (clientData.origin !== origin) {
-        res.json({
-            'status': 'failed',
-            'message': 'Origins don\'t match!'
-        });
-        return
-    }
-
-    let result;
-
-    if(webauthnResp.response.attestationObject !== undefined) {
-        /* This is create cred */
-        console.log('This is create');
-        result = verifyAuthenticatorAttestationResponse(webauthnResp);
-
-        if(result.verified) {
-            database[req.session.username].authenticators.push(result.authrInfo);
-            database[req.session.username].registered = true
-        }
-    } else if(webauthnResp.response.authenticatorData !== undefined) {
-        /* This is get assertion */
-        console.log('This is login');
-
-        result = verifyAuthenticatorAssertionResponse(webauthnResp, database[req.session.username].authenticators);
-    } else {
-        res.json({
-            'status': 'failed',
-            'message': 'Can not determine type of response!'
+            'message': e.message
         })
     }
 
-    if(result.verified) {
-        req.session.loggedIn = true;
-        res.json({ 'status': 'ok' })
-    } else {
-        res.json({
-            'status': 'failed',
-            'message': 'Can not authenticate signature!'
-        })
-    }
+    res.json({
+        'status': 'ok',
+    })
 });
+
+app.post('/verify-login', (req, res) => {
+
+})
 
 app.post('/login', (req, res) => {
     if(!req.body || !req.body.username) {
@@ -139,8 +98,38 @@ app.post('/login', (req, res) => {
             'message': 'Request missing username field!'
         });
 
-
+        return;
     }
+
+    let username = req.body.username;
+
+    console.log('database')
+    console.log(JSON.stringify(database))
+    if(!database.users[username]) {
+        res.json({
+            'status': 'failed',
+            'message': `User ${username} does not exist!`
+        });
+
+        return
+    }
+
+    if(!database.users[username].registered) {
+        res.json({
+            'status': 'failed',
+            'message': `User ${username} has not been registered!`
+        });
+
+        return
+    }
+
+    let getAssertion    = generateServerGetAssertion(database[username].authenticators)
+    getAssertion.status = 'ok'
+
+    req.session.challenge = getAssertion.challenge;
+    req.session.username  = username;
+
+    req.json(getAssertion)
 });
 
 
