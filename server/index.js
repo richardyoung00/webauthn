@@ -2,12 +2,14 @@ import express from "express";
 import bodyParser from "body-parser";
 import cookieSession from "cookie-session";
 import crypto from "crypto";
-import {generateServerMakeCredRequest, randomBase64URLBuffer,
-    verifyAuthenticatorAttestationResponse, verifyAuthenticatorAssertionResponse, generateServerGetAssertion} from "./security.js";
+import {randomBase64URLBuffer, generateServerGetAssertion} from "./security.js";
 import path from 'path'
 import url from 'url'
 import base64url from "base64url";
-import {verifyNewCredential} from "./registration.js";
+import {verifyNewCredential, generateServerMakeCredRequest} from "./registration.js";
+
+import Fido2Lib from "fido2-lib";
+const f2l = new Fido2Lib.Fido2Lib();
 
 const app = express();
 const port = 3000;
@@ -31,12 +33,12 @@ const database = {
 
 app.post('/register', (req, res) => {
     if (!req.body.username) {
-        res.json({error: 'Username is required'});
+        res.json({status: 'error', message: 'Username is required'});
         return
     }
     const username = req.body.username.toLowerCase();
     if (database.users[username]) {
-        res.json({error: 'Username already exists, try logging in'});
+        res.json({status: 'error', message: 'Username already exists, try logging in'});
         return
     }
 
@@ -46,11 +48,10 @@ app.post('/register', (req, res) => {
     const userId = randomBase64URLBuffer();
     let user = {
         'username': username,
-        'registered': false,
         'id': userId,
         'authenticators': []
-
     };
+
     database.users[username] = user;
 
     let challengeMakeCred = generateServerMakeCredRequest(username, userId);
@@ -65,21 +66,39 @@ app.post('/register', (req, res) => {
 /*
 * https://w3c.github.io/webauthn/#sctn-registering-a-new-credential
 * */
-app.post('/verify-registration', (req, res) => {
+app.post('/verify-registration', async (req, res) => {
     let publicKeyCredential = req.body;
 
     const expectations = {
         origin: 'http://localhost:3000',
-        challenge: req.session.challenge
+        challenge: req.session.challenge,
     };
 
     try {
-        verifyNewCredential(publicKeyCredential, expectations);
+        const result = verifyNewCredential(publicKeyCredential, expectations);
+
+        /* things to save
+        *   cred.set("publicKey", result.authnrData.get("credentialPublicKeyPem"));
+            cred.set("credId", coerceToBase64(result.authnrData.get("credId")));
+            cred.set("prevCounter", result.authnrData.get("counter"));
+        * */
+
+        database.users[req.session.username].authenticators.push(result)
+
+        if (result.success !== true) {
+            res.json({
+                'status': 'failed',
+                'message': result.message
+            })
+            return
+        }
     } catch(e) {
+        console.error(e)
         res.json({
             'status': 'failed',
             'message': e.message
         })
+        return
     }
 
     res.json({
@@ -105,6 +124,7 @@ app.post('/login', (req, res) => {
 
     console.log('database')
     console.log(JSON.stringify(database))
+
     if(!database.users[username]) {
         res.json({
             'status': 'failed',
@@ -114,16 +134,17 @@ app.post('/login', (req, res) => {
         return
     }
 
-    if(!database.users[username].registered) {
+    if(database.users[username].authenticators.length === 0) {
         res.json({
             'status': 'failed',
-            'message': `User ${username} has not been registered!`
+            'message': `User ${username} has no registered authenticators!`
         });
 
         return
     }
 
-    let getAssertion    = generateServerGetAssertion(database[username].authenticators)
+    // todo make new
+    let getAssertion = generateServerGetAssertion(database[username].authenticators)
     getAssertion.status = 'ok'
 
     req.session.challenge = getAssertion.challenge;
