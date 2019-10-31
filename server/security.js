@@ -15,13 +15,6 @@ export const randomBase64URLBuffer = (len) => {
     return base64url(buff);
 };
 
-// function base64url(input, encoding = "utf8") {
-//     if (Buffer.isBuffer(input)) {
-//         return fromBase64(input.toString("base64"));
-//     }
-//     return fromBase64(Buffer.from(input, encoding).toString("base64"));
-// }
-
 function fromBase64(base64) {
     return base64
         .replace(/=/g, "")
@@ -289,13 +282,15 @@ export let generateServerGetAssertion = (authenticators) => {
     for(let authr of authenticators) {
         allowCredentials.push({
             type: 'public-key',
-            id: authr.credID,
-            transports: ['usb', 'nfc', 'ble']
+            id: authr.credentialId,
+            // transports: ['usb', 'nfc', 'ble']
         })
     }
     return {
         challenge: randomBase64URLBuffer(32),
-        allowCredentials: allowCredentials
+        allowCredentials: allowCredentials,
+        userVerification: "discouraged",
+        //rpId: "localhost:3000"
     }
 }
 

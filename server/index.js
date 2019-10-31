@@ -123,7 +123,7 @@ app.post('/login', (req, res) => {
     let username = req.body.username;
 
     console.log('database')
-    console.log(JSON.stringify(database))
+    console.log(JSON.stringify(database, null, 2))
 
     if(!database.users[username]) {
         res.json({
@@ -144,13 +144,13 @@ app.post('/login', (req, res) => {
     }
 
     // todo make new
-    let getAssertion = generateServerGetAssertion(database[username].authenticators)
+    let getAssertion = generateServerGetAssertion(database.users[username].authenticators)
     getAssertion.status = 'ok'
 
     req.session.challenge = getAssertion.challenge;
     req.session.username  = username;
 
-    req.json(getAssertion)
+    res.json(getAssertion)
 });
 
 

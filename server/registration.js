@@ -12,7 +12,10 @@ export function generateServerMakeCredRequest(username, userId) {
         rp: {
             name: "ACME Corporation",
         },
-
+        authenticatorSelection: {
+            requireResidentKey: false,
+            userVerification: "discouraged",
+        },
         user: {
             id: userId,
             name: username,
@@ -58,7 +61,7 @@ function parseAuthData(buffer) {
 
     let credIdLen = credIdLenBuf.readUInt16BE(0);
     let credIdArrayBuffer = buffer.slice(0, credIdLen);
-    const credId = new Buffer(credIdArrayBuffer).toString('base64');
+    const credId = base64url.encode(new Buffer(credIdArrayBuffer));
     buffer = buffer.slice(credIdLen);
 
     let publicKeyCose = buffer;
@@ -83,7 +86,7 @@ export function verifyNewCredential(publicKeyCredential, expectations) {
     }
 
     // Verify that the value of C.challenge equals the base64url encoding of options.challenge.
-    if (base64url.decode(clientDataJSON.challenge) !== expectations.challenge) {
+    if (clientDataJSON.challenge !== expectations.challenge) {
         return {
             success: false,
             message: 'Challenge does not match'
@@ -118,21 +121,21 @@ export function verifyNewCredential(publicKeyCredential, expectations) {
 
     // Verify that the User Present bit of the flags in authData is set.
     // Usually just pressing a button
-    // if (!authData.flags.has('UP')) {
-    //     return {
-    //         success: false,
-    //         message: 'User was not present during authentication'
-    //     }
-    // }
+    if (!authData.flags.has('UP')) {
+        return {
+            success: false,
+            message: 'User was not present during authentication'
+        }
+    }
 
     // [Optional] Verify that the User Verification bit of the flags in authData is set.
     // Such as pin code, password, biometrics etc
-    // if (!authData.flags.has('UV')) {
-    //     return {
-    //         success: false,
-    //         message: 'User was not verified as a part of authentication'
-    //     }
-    // }
+    if (!authData.flags.has('UV')) {
+        return {
+            success: false,
+            message: 'User was not verified as a part of authentication'
+        }
+    }
 
     // Verify that the "alg" parameter in the credential public key in authData matches the alg attribute of one of the items in options.pubKeyCredParams.
     const publicKey = cbor.decodeFirstSync(authData.publicKeyCose);

@@ -41,6 +41,7 @@
 
 <script type="module">
     import {postJson, publicKeyCredentialToJSON} from "./utils.js";
+    import {decode, encode} from "./base64url-arraybuffer.js"
 
     window.onload = () => {
         const registerButton = document.getElementById('btn-register');
@@ -68,8 +69,8 @@
             console.log(registrationResponse);
 
             // these fields need to be byte arrays instead of strings
-            registrationResponse.challenge = strToByteArray(registrationResponse.challenge);
-            registrationResponse.user.id = strToByteArray(registrationResponse.user.id);
+            registrationResponse.challenge = decode(registrationResponse.challenge);
+            registrationResponse.user.id = decode(registrationResponse.user.id);
 
             const publicKeyCredential = await navigator.credentials.create({publicKey: registrationResponse});
             const publicKeyCredentialJson = publicKeyCredentialToJSON(publicKeyCredential);
@@ -82,9 +83,6 @@
 
     }
 
-    const strToByteArray = (str) => new TextEncoder("utf-8").encode(str);
-
-
     async function login() {
         const body = {
             username: document.getElementById('txt-username').value
@@ -94,13 +92,22 @@
         if (loginResponse.status !== 'ok') {
             alert(loginResponse.message)
         } else {
-            loginResponse.challenge = strToByteArray(loginResponse.challenge);
+
+            delete loginResponse.status
+            loginResponse.challenge = decode(loginResponse.challenge);
 
             for(let allowCred of loginResponse.allowCredentials) {
-                allowCred.id = strToByteArray(allowCred.id);
-            }
-            const cred = navigator.credentials.get({publicKey: loginResponse});
+                console.log("allowed cred ID: ", allowCred.id)
 
+                allowCred.id = decode(allowCred.id);
+            }
+
+            console.log('Trying to get credential:')
+            console.log(loginResponse)
+
+            const cred = await navigator.credentials.get({publicKey: loginResponse});
+            console.log('found cred: ')
+            console.log(cred)
             let getAssertionResponse = publicKeyCredentialToJSON(cred);
             const result = await postJson('/verify-login', getAssertionResponse);
 
