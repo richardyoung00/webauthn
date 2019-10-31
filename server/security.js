@@ -272,25 +272,3 @@ export const verifyAuthenticatorAssertionResponse = (webAuthnResponse, authentic
     return response
 }
 
-/**
- * Generates getAssertion request
- * @param  {Array} authenticators              - list of registered authenticators
- * @return {PublicKeyCredentialRequestOptions} - server encoded get assertion request
- */
-export let generateServerGetAssertion = (authenticators) => {
-    let allowCredentials = [];
-    for(let authr of authenticators) {
-        allowCredentials.push({
-            type: 'public-key',
-            id: authr.credentialId,
-            // transports: ['usb', 'nfc', 'ble']
-        })
-    }
-    return {
-        challenge: randomBase64URLBuffer(32),
-        allowCredentials: allowCredentials,
-        userVerification: "discouraged",
-        //rpId: "localhost:3000"
-    }
-}
-

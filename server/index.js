@@ -2,14 +2,11 @@ import express from "express";
 import bodyParser from "body-parser";
 import cookieSession from "cookie-session";
 import crypto from "crypto";
-import {randomBase64URLBuffer, generateServerGetAssertion} from "./security.js";
+import {randomBase64URLBuffer} from "./security.js";
 import path from 'path'
 import url from 'url'
-import base64url from "base64url";
-import {verifyNewCredential, generateServerMakeCredRequest} from "./registration.js";
-
-import Fido2Lib from "fido2-lib";
-const f2l = new Fido2Lib.Fido2Lib();
+import {verifyNewCredential, generatePublicKeyCredentialCreationOptions} from "./registration.js";
+import {verifyExistingCredential, generatePublicKeyCredentialRequestOptions} from "./login.js"
 
 const app = express();
 const port = 3000;
@@ -54,7 +51,7 @@ app.post('/register', (req, res) => {
 
     database.users[username] = user;
 
-    let challengeMakeCred = generateServerMakeCredRequest(username, userId);
+    let challengeMakeCred = generatePublicKeyCredentialCreationOptions(username, userId);
     req.session.challenge = challengeMakeCred.challenge;
     req.session.username  = username;
 
@@ -63,7 +60,7 @@ app.post('/register', (req, res) => {
     res.json(challengeMakeCred)
 });
 
-/*
+/**
 * https://w3c.github.io/webauthn/#sctn-registering-a-new-credential
 * */
 app.post('/verify-registration', async (req, res) => {
@@ -76,12 +73,6 @@ app.post('/verify-registration', async (req, res) => {
 
     try {
         const result = verifyNewCredential(publicKeyCredential, expectations);
-
-        /* things to save
-        *   cred.set("publicKey", result.authnrData.get("credentialPublicKeyPem"));
-            cred.set("credId", coerceToBase64(result.authnrData.get("credId")));
-            cred.set("prevCounter", result.authnrData.get("counter"));
-        * */
 
         database.users[req.session.username].authenticators.push(result)
 
@@ -105,10 +96,6 @@ app.post('/verify-registration', async (req, res) => {
         'status': 'ok',
     })
 });
-
-app.post('/verify-login', (req, res) => {
-
-})
 
 app.post('/login', (req, res) => {
     if(!req.body || !req.body.username) {
@@ -143,8 +130,7 @@ app.post('/login', (req, res) => {
         return
     }
 
-    // todo make new
-    let getAssertion = generateServerGetAssertion(database.users[username].authenticators)
+    let getAssertion = generatePublicKeyCredentialRequestOptions(database.users[username].authenticators)
     getAssertion.status = 'ok'
 
     req.session.challenge = getAssertion.challenge;
@@ -152,6 +138,35 @@ app.post('/login', (req, res) => {
 
     res.json(getAssertion)
 });
+
+/**
+ * https://w3c.github.io/webauthn/#sctn-verifying-assertion
+ */
+app.post('/verify-login', (req, res) => {
+    let publicKeyCredential = req.body;
+    console.log(publicKeyCredential)
+
+    const expectations = {
+        origin: 'http://localhost:3000',
+        challenge: req.session.challenge,
+    };
+
+    try {
+
+        const result = verifyExistingCredential(publicKeyCredential, expectations);
+
+
+        return
+    } catch (e) {
+        console.error(e)
+        res.json({
+            'status': 'failed',
+            'message': e.message
+        })
+    }
+
+
+})
 
 
 app.listen(port, () => console.log(`Example app listening on port ${port}!`));

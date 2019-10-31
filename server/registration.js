@@ -5,7 +5,7 @@ import crypto from "crypto";
 import coseToJwk from "cose-to-jwk"
 import jwkToPem from "jwk-to-pem"
 
-export function generateServerMakeCredRequest(username, userId) {
+export function generatePublicKeyCredentialCreationOptions(username, userId) {
     return {
         challenge: randomBase64URLBuffer(32),
 
