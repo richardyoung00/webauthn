@@ -109,8 +109,6 @@ app.post('/login', (req, res) => {
 
     let username = req.body.username;
 
-    console.log('database')
-    console.log(JSON.stringify(database, null, 2))
 
     if(!database.users[username]) {
         res.json({
@@ -144,17 +142,22 @@ app.post('/login', (req, res) => {
  */
 app.post('/verify-login', (req, res) => {
     let publicKeyCredential = req.body;
+    console.log('publicKeyCredential')
     console.log(publicKeyCredential)
 
     const expectations = {
         origin: 'http://localhost:3000',
         challenge: req.session.challenge,
+        authenticators: database.users[req.session.username].authenticators
     };
 
     try {
 
         const result = verifyExistingCredential(publicKeyCredential, expectations);
 
+        console.log('result')
+
+        console.log(JSON.stringify(result, null, 2))
 
         return
     } catch (e) {
