@@ -78,6 +78,8 @@
             const resisterResponse = await postJson('/verify-registration', publicKeyCredentialJson);
             if (resisterResponse.status !== 'ok') {
                 alert(resisterResponse.message)
+            } else {
+                alert("Registration successful")
             }
         }
 
@@ -114,6 +116,8 @@
 
             if (result.status !== 'ok') {
                 alert(`Server responed with error. The message is: ${result.message}`);
+            } else {
+                alert(`You are now logged in`);
             }
         }
     }

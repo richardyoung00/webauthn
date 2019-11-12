@@ -149,6 +149,16 @@ export function verifyExistingCredential(publicKeyCredential, expectations) {
         }
     }
 
+    // verify authData.signCount. If > storedSignCount then update storedSignCount. If <= storedSignCount this is a signal that the authenticator may be cloned
+    if (authData.counter > authenticator.counter) {
+        authenticator.counter = authData.counter
+    } else {
+        return {
+            success: false,
+            message: 'Counter on authenticator less than or equal to previously seen counter value'
+        }
+    }
+
     return {
         success: true
     }

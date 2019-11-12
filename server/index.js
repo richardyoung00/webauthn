@@ -159,7 +159,17 @@ app.post('/verify-login', (req, res) => {
 
         console.log(JSON.stringify(result, null, 2))
 
-        return
+        if (result.success !== true) {
+            res.json({
+                'status': 'failed',
+                'message': result.message
+            })
+            return
+        }
+
+        res.json({
+            'status': 'ok',
+        })
     } catch (e) {
         console.error(e)
         res.json({
