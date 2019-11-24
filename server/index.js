@@ -72,7 +72,7 @@ app.post('/verify-registration', async (req, res) => {
     };
 
     try {
-        const result = verifyNewCredential(publicKeyCredential, expectations);
+        const result = verifyNewCredential(publicKeyCredential, expectations, { requireUserVerification: false });
 
         database.users[req.session.username].authenticators.push(result)
 
@@ -142,8 +142,6 @@ app.post('/login', (req, res) => {
  */
 app.post('/verify-login', (req, res) => {
     let publicKeyCredential = req.body;
-    console.log('publicKeyCredential')
-    console.log(publicKeyCredential)
 
     const expectations = {
         origin: 'http://localhost:3000',
@@ -153,7 +151,7 @@ app.post('/verify-login', (req, res) => {
 
     try {
 
-        const result = verifyExistingCredential(publicKeyCredential, expectations);
+        const result = verifyExistingCredential(publicKeyCredential, expectations, { requireUserVerification: false });
 
         console.log('result')
 

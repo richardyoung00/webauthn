@@ -36,18 +36,21 @@ export let generatePublicKeyCredentialRequestOptions = (authenticators) => {
         allowCredentials.push({
             type: 'public-key',
             id: authenticator.credentialId,
-            // transports: ['usb', 'nfc', 'ble']
         })
     }
     return {
         challenge: randomBase64URLBuffer(32),
         allowCredentials: allowCredentials,
-        userVerification: "discouraged",
-        //rpId: "localhost:3000"
+        userVerification: "preferred",
     }
 }
 
-export function verifyExistingCredential(publicKeyCredential, expectations) {
+const defaultOptions = {
+    requireUserVerification: true
+};
+
+export function verifyExistingCredential(publicKeyCredential, expectations, userOptions = {}) {
+    const options = {...defaultOptions, ...userOptions}
     const clientDataJSON = JSON.parse(base64url.decode(publicKeyCredential.response.clientDataJSON));
 
     console.log('clientDataJSON');
@@ -84,9 +87,6 @@ export function verifyExistingCredential(publicKeyCredential, expectations) {
 
     // Verify that the rpIdHash in authData is the SHA-256 hash of the RP ID expected by the Relying Party
 
-    console.log('authData')
-    console.log(JSON.stringify(authData, null, 2))
-
     const domain = new URL(clientDataJSON.origin).hostname;
     const domainHash = new Uint8Array(crypto.createHash("sha256").update(domain).digest()).buffer;
 
@@ -108,12 +108,12 @@ export function verifyExistingCredential(publicKeyCredential, expectations) {
 
     // [Optional] Verify that the User Verification bit of the flags in authData is set.
     // Such as pin code, password, biometrics etc
-    // if (!authData.flags.has('UV')) {
-    //     return {
-    //         success: false,
-    //         message: 'User was not verified as a part of authentication'
-    //     }
-    // }
+    if (options.requireUserVerification && !authData.flags.has('UV')) {
+        return {
+            success: false,
+            message: 'User was not verified as a part of authentication'
+        }
+    }
 
     // Find the authenticator that matches the credential ID
     const authenticator = expectations.authenticators.find(auth => auth.credentialId === publicKeyCredential.id);

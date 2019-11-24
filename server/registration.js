@@ -13,8 +13,8 @@ export function generatePublicKeyCredentialCreationOptions(username, userId) {
             name: "ACME Corporation",
         },
         authenticatorSelection: {
-            requireResidentKey: false,
-            userVerification: "discouraged",
+            userVerification: "preferred",
+            residentKey: "required"
         },
         user: {
             id: userId,
@@ -71,10 +71,15 @@ function parseAuthData(buffer) {
 
 }
 
+const defaultOptions = {
+    requireUserVerification: true
+};
+
 /*
 * https://w3c.github.io/webauthn/#sctn-registering-a-new-credential
 * */
-export function verifyNewCredential(publicKeyCredential, expectations) {
+export function verifyNewCredential(publicKeyCredential, expectations, userOptions = {}) {
+    const options = {...defaultOptions, ...userOptions};
     const clientDataJSON = JSON.parse(base64url.decode(publicKeyCredential.response.clientDataJSON));
 
     // Verify that the value of C.type is webauthn.create.
@@ -130,12 +135,12 @@ export function verifyNewCredential(publicKeyCredential, expectations) {
 
     // [Optional] Verify that the User Verification bit of the flags in authData is set.
     // Such as pin code, password, biometrics etc
-    // if (!authData.flags.has('UV')) {
-    //     return {
-    //         success: false,
-    //         message: 'User was not verified as a part of authentication'
-    //     }
-    // }
+    if (options.requireUserVerification && !authData.flags.has('UV')) {
+        return {
+            success: false,
+            message: 'User was not verified as a part of authentication'
+        }
+    }
 
     // Verify that the "alg" parameter in the credential public key in authData matches the alg attribute of one of the items in options.pubKeyCredParams.
     const publicKey = cbor.decodeFirstSync(authData.publicKeyCose);
