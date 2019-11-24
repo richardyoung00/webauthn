@@ -1,13 +1,13 @@
-## Registration
+# WebAuthn Demo
 
-1. Client makes request to server with username to get a random challenge string and a server defined user id
-2. call navigator.credentials.create()
-3. response is serialized to JSON and sent to server
-4. server verifies that challenge was the same one sent
-5. server verifies that origin is correct
-6. verifyAuthenticatorAttestationResponse
-7. If verified correctly then save user to DB
+This a minimal implementation of the W3C WebAuthn Spec found here https://www.w3.org/TR/webauthn/.
+Public Key Credentials are save in memory only will therefore not persist after server restarts.
+Some parts (like extensions and attestation verification) have not been implemented yet.
 
-Resources:
-- https://medium.com/@herrjemand/verifying-fido2-responses-4691288c8770
-- https://medium.com/@herrjemand/verifying-fido2-safetynet-attestation-bd261ce1978d
+##Getting Started
+
+```shell script
+npm install
+npm run start
+```
+

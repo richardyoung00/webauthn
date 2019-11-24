@@ -1,0 +1,6 @@
+---
+applications:
+  - buildpack: https://github.com/cloudfoundry/nodejs-buildpack
+    name: webauthn-demo
+    memory: 128M
+    instances: 1

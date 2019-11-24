@@ -9,7 +9,7 @@ import {verifyNewCredential, generatePublicKeyCredentialCreationOptions} from ".
 import {verifyExistingCredential, generatePublicKeyCredentialRequestOptions} from "./login.js"
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 const __dirname = path.dirname(new url.URL(import.meta.url).pathname);
 
@@ -67,28 +67,28 @@ app.post('/verify-registration', async (req, res) => {
     let publicKeyCredential = req.body;
 
     const expectations = {
-        origin: 'http://localhost:3000',
+        origin: process.env.HOST || 'http://localhost:3000',
         challenge: req.session.challenge,
     };
 
     try {
         const result = verifyNewCredential(publicKeyCredential, expectations, { requireUserVerification: false });
 
-        database.users[req.session.username].authenticators.push(result)
+        database.users[req.session.username].authenticators.push(result);
 
         if (result.success !== true) {
             res.json({
                 'status': 'failed',
                 'message': result.message
-            })
+            });
             return
         }
     } catch(e) {
-        console.error(e)
+        console.error(e);
         res.json({
             'status': 'failed',
             'message': e.message
-        })
+        });
         return
     }
 
@@ -128,8 +128,8 @@ app.post('/login', (req, res) => {
         return
     }
 
-    let getAssertion = generatePublicKeyCredentialRequestOptions(database.users[username].authenticators)
-    getAssertion.status = 'ok'
+    let getAssertion = generatePublicKeyCredentialRequestOptions(database.users[username].authenticators);
+    getAssertion.status = 'ok';
 
     req.session.challenge = getAssertion.challenge;
     req.session.username  = username;
@@ -144,7 +144,7 @@ app.post('/verify-login', (req, res) => {
     let publicKeyCredential = req.body;
 
     const expectations = {
-        origin: 'http://localhost:3000',
+        origin: process.env.HOST || 'http://localhost:3000',
         challenge: req.session.challenge,
         authenticators: database.users[req.session.username].authenticators
     };
@@ -153,15 +153,11 @@ app.post('/verify-login', (req, res) => {
 
         const result = verifyExistingCredential(publicKeyCredential, expectations, { requireUserVerification: false });
 
-        console.log('result')
-
-        console.log(JSON.stringify(result, null, 2))
-
         if (result.success !== true) {
             res.json({
                 'status': 'failed',
                 'message': result.message
-            })
+            });
             return
         }
 
@@ -169,7 +165,7 @@ app.post('/verify-login', (req, res) => {
             'status': 'ok',
         })
     } catch (e) {
-        console.error(e)
+        console.error(e);
         res.json({
             'status': 'failed',
             'message': e.message
@@ -177,7 +173,7 @@ app.post('/verify-login', (req, res) => {
     }
 
 
-})
+});
 
 
-app.listen(port, () => console.log(`Example app listening on port ${port}!`));
+app.listen(port, () => console.log(`WebAuthn demo listening on port ${port}!`));

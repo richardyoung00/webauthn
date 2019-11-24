@@ -42,8 +42,8 @@
     <h2>WebAuthn Demo</h2>
     <div class="login-form">
         <fieldset>
-            <label for="usernameField">Please enter your username</label>
-            <input type="text" placeholder="username@example.com" id="usernameField">
+            <label for="txt-username">Please enter your username</label>
+            <input type="text" placeholder="username@example.com" id="txt-username">
             <button id=btn-register>Register</button>
             <button id=btn-login>Login</button>
         </fieldset>
@@ -85,7 +85,7 @@
         // if yes, tell them to log in,
         // if not send back registration response to give to authenticator
         const body = {
-            username: document.getElementById('usernameField').value
+            username: document.getElementById('txt-username').value
         };
         const registrationResponse = await postJson('/register', body);
         if (registrationResponse.status !== 'ok') {
