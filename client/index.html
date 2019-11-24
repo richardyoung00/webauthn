@@ -82,8 +82,8 @@
 
     async function register() {
         // send username to server, check if user is registered
-        // if yes, return error and let them log in,
-        // if not send back random challenge
+        // if yes, tell them to log in,
+        // if not send back registration response to give to authenticator
         const body = {
             username: document.getElementById('usernameField').value
         };

@@ -53,9 +53,6 @@ export function verifyExistingCredential(publicKeyCredential, expectations, user
     const options = {...defaultOptions, ...userOptions}
     const clientDataJSON = JSON.parse(base64url.decode(publicKeyCredential.response.clientDataJSON));
 
-    console.log('clientDataJSON');
-    console.log(JSON.stringify(clientDataJSON, null, 2));
-
     // Verify that the value of C.type is webauthn.get.
     if (clientDataJSON.type !== 'webauthn.get') {
         return {
