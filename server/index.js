@@ -39,21 +39,12 @@ app.post('/register', (req, res) => {
         return
     }
 
-    // save user in db
-    // todo do we need to do this now? can we wait until the user sends us an authenticator response?
-    // if we save the user here should we not save challenge here and not in cookies?
     const userId = randomBase64URLBuffer();
-    let user = {
-        'username': username,
-        'id': userId,
-        'authenticators': []
-    };
-
-    database.users[username] = user;
 
     let challengeMakeCred = generatePublicKeyCredentialCreationOptions(username, userId);
     req.session.challenge = challengeMakeCred.challenge;
     req.session.username  = username;
+    req.session.userId  = userId;
 
     challengeMakeCred.status = 'ok';
 
@@ -72,17 +63,24 @@ app.post('/verify-registration', async (req, res) => {
     };
 
     try {
-        const result = verifyNewCredential(publicKeyCredential, expectations, { requireUserVerification: false });
+        const authenticatorData = verifyNewCredential(publicKeyCredential, expectations, { requireUserVerification: false });
 
-        database.users[req.session.username].authenticators.push(result);
-
-        if (result.success !== true) {
+        if (authenticatorData.success !== true) {
             res.json({
                 'status': 'failed',
-                'message': result.message
+                'message': authenticatorData.message
             });
             return
         }
+
+        let user = {
+            'username': req.session.username,
+            'id': req.session.userId,
+            'authenticators': [authenticatorData]
+        };
+
+        database.users[req.session.username] = user;
+
     } catch(e) {
         console.error(e);
         res.json({
@@ -107,7 +105,7 @@ app.post('/login', (req, res) => {
         return;
     }
 
-    let username = req.body.username;
+    let username = req.body.username.toLowerCase();
 
 
     if(!database.users[username]) {
