@@ -5,6 +5,9 @@ import crypto from "crypto";
 import coseToJwk from "cose-to-jwk"
 import jwkToPem from "jwk-to-pem"
 
+// IANA COSE Algorithms registry
+const publicKeyAlgorithms = [-7, -35, -36, -257, -258, -259, -37, -38, -39, -8]
+
 export function generatePublicKeyCredentialCreationOptions(username, userId) {
     return {
         challenge: randomBase64URLBuffer(32),
@@ -13,8 +16,7 @@ export function generatePublicKeyCredentialCreationOptions(username, userId) {
             name: "ACME Corporation",
         },
         authenticatorSelection: {
-            userVerification: "preferred",
-            residentKey: "required"
+            requireResidentKey: false
         },
         user: {
             id: userId,
@@ -24,12 +26,7 @@ export function generatePublicKeyCredentialCreationOptions(username, userId) {
 
         attestation: 'none',
 
-        pubKeyCredParams: [
-            {
-                type: "public-key",
-                alg: -7 // "ES256" IANA COSE Algorithms registry
-            },
-        ]
+        pubKeyCredParams: publicKeyAlgorithms.map(alg => ({ type: 'public-key', alg: alg}))
     }
 }
 
@@ -144,7 +141,8 @@ export function verifyNewCredential(publicKeyCredential, expectations, userOptio
 
     // Verify that the "alg" parameter in the credential public key in authData matches the alg attribute of one of the items in options.pubKeyCredParams.
     const publicKey = cbor.decodeFirstSync(authData.publicKeyCose);
-    if (publicKey.get(3) !== -7) {
+    const alg = publicKey.get(3)
+    if (!publicKeyAlgorithms.includes(alg)) {
         return {
             success: false,
             message: 'Algorithm used for public key is not one of the expected ones'
