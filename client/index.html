@@ -19,6 +19,10 @@
             align-items: center;
         }
 
+        h3 {
+            margin: 0;
+        }
+
         .page-container {
             width: 100%;
             display: flex;
@@ -33,6 +37,27 @@
             border: 1px solid #9b4dca;
             padding: 2rem 2rem 1rem 2rem;
             border-radius: .4rem;
+            position: relative;
+        }
+
+        .message {
+            height: 100%;
+            width: 100%;
+            background: #9b4dca;
+            color: white;
+            position: absolute;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            top: 0;
+            left: 0;
+        }
+
+        .close {
+            position: absolute;
+            top: 0.5em;
+            right: 1em;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -48,6 +73,9 @@
             <button id=btn-register>Register</button>
             <button id=btn-login>Login</button>
         </fieldset>
+        <div id="loading" class="message"><h3>Please wait...</h3></div>
+        <div id="register-success" class="message"><h3>You have been registered!</h3><div class="close">x</div></div>
+        <div id="login-success" class="message"><h3>You are now logged in!</h3><div class="close">x</div></div>
     </div>
     <br>
     <a href="https://github.com/richardyoung00/webauthn">github.com/richardyoung00/webauthn</a>
@@ -59,18 +87,37 @@
     import {decode, encode} from "./base64url-arraybuffer.js"
 
     window.onload = () => {
-        checkForWebAuthnSupport()
+        checkForWebAuthnSupport();
+        setUpCloseButtons();
 
         const registerButton = document.getElementById('btn-register');
         registerButton.addEventListener('click', () => {
-            register()
+            document.querySelector("#loading").style.display = 'flex';
+            register().finally(() => {
+                document.querySelector("#loading").style.display = 'none';
+            })
         });
 
         const loginButton = document.getElementById('btn-login');
         loginButton.addEventListener('click', () => {
-            login()
+            document.querySelector("#loading").style.display = 'flex';
+            login().finally(() => {
+                document.querySelector("#loading").style.display = 'none';
+            })
         })
     };
+
+    function hideAllMessages() {
+        for (let message of document.querySelectorAll('.message')) {
+            message.style.display = "none";
+        }
+    }
+
+    function setUpCloseButtons() {
+        for (let button of document.querySelectorAll('.close')) {
+            button.addEventListener('click', hideAllMessages)
+        }
+    }
 
     function checkForWebAuthnSupport() {
         if (!window.PublicKeyCredential) {
@@ -105,7 +152,7 @@
             if (resisterResponse.status !== 'ok') {
                 alert(resisterResponse.message)
             } else {
-                alert("Registration successful")
+                document.querySelector("#register-success").style.display = "flex";
             }
         }
 
@@ -121,21 +168,14 @@
             alert(loginResponse.message)
         } else {
 
-            delete loginResponse.status
+            delete loginResponse.status;
             loginResponse.challenge = decode(loginResponse.challenge);
 
             for(let allowCred of loginResponse.allowCredentials) {
-                console.log("allowed cred ID: ", allowCred.id)
-
                 allowCred.id = decode(allowCred.id);
             }
 
-            console.log('Trying to get credential:')
-            console.log(loginResponse)
-
             const cred = await navigator.credentials.get({publicKey: loginResponse});
-            console.log('found cred: ')
-            console.log(cred)
             let getAssertionResponse = publicKeyCredentialToJSON(cred);
             const result = await postJson('/verify-login', getAssertionResponse);
 
@@ -143,7 +183,7 @@
             if (result.status !== 'ok') {
                 alert(`Server responed with error. The message is: ${result.message}`);
             } else {
-                alert(`You are now logged in`);
+                document.querySelector("#login-success").style.display = "flex";
             }
         }
     }
